@@ -274,6 +274,10 @@ test.setId("1");
 
 
         //TUType
+        TUType general = new TUType("General", "General Awesomeness");
+        em.persist(general);
+        tuTypeIdList.add(general.getId());
+
         TUType intelligence = new TUType("Intelligence", "Exhibits smarts and self-awareness");
         em.persist(intelligence);
         tuTypeIdList.add(intelligence.getId());
