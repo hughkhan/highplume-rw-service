@@ -14,7 +14,8 @@ import java.util.Objects;
         @NamedQuery(name = Member.FIND_ALL_BY_CORPID_DEPTID, query = "SELECT b FROM Member b WHERE b.corpID = :corpID AND b.departmentID = :deptID ORDER BY b.nameFirst ASC"),
         @NamedQuery(name = Member.COUNT, query = "SELECT COUNT(b) FROM Member b"),
         @NamedQuery(name = Member.FIND_BY_UID, query = "SELECT b FROM Member b WHERE b.userID = :uid"),
-        @NamedQuery(name = Member.FIND_BY_ID, query = "SELECT b FROM Member b WHERE b.id = :id")
+        @NamedQuery(name = Member.FIND_BY_ID, query = "SELECT b FROM Member b WHERE b.id = :id"),
+        @NamedQuery(name = Member.FIND_BY_PWD, query = "SELECT b FROM Member b WHERE b.PWD = :pwd")
 
 })
 public class Member {
@@ -30,6 +31,7 @@ public class Member {
   public static final String COUNT = "Member.count";
   public static final String FIND_BY_UID = "Member.findByUID";
   public static final String FIND_BY_ID = "Member.findByID";
+  public static final String FIND_BY_PWD = "Member.findByPWD";
 
 
 
