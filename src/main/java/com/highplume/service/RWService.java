@@ -1070,7 +1070,8 @@ test.setId("1");
                              ","+deptcorp.getDeptName()+
                              ","+corp.getId()+
                              ","+corp.getName()+
-                             ","+role.getId();
+//                             ","+role.getId()+
+							 ","+loggingMember.getPWD();
 
 
         } catch (NoResultException pe) {
@@ -1239,9 +1240,30 @@ test.setId("1");
 
     /*--------------------------*/
 
-
-
-
+  public boolean validUserAndLevel(String CorpID, String UserID, String UserToken, String minLevel) {
+	try{
+		Member member = em.createNamedQuery(Member.FIND_BY_PWD, Member.class).setParameter("pwd",UserToken).getSingleResult();
+		Integer minLevelIntValue = Integer.valueOf(minLevel);
+		Integer userRoleIntValue = Integer.valueOf(member.getRoleID());
+		
+		if (CorpID.equals(member.getCorpID()) && UserID.equals(member.getUserID())){
+			if (userRoleIntValue <= minLevelIntValue)
+				return true;
+			else
+				return false;				
+		}
+		else
+		{
+			return false;
+		}
+ 	} catch (NoResultException pe) {
+            return false;
+    } catch  (PersistenceException pe){
+            return false;
+    } catch (Exception e){
+            return false; 
+    }
+  }
 }
 
 /*
