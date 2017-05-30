@@ -1060,6 +1060,8 @@ test.setId("1");
             TypedQuery<Corp> cquery = em.createNamedQuery(Corp.FIND_BY_ID, Corp.class).setParameter("id",deptcorp.getCorpID());
 			Corp corp = cquery.getSingleResult();
 
+            byte[] encodedPWD = Base64.getEncoder().encode(loggingMember.getPWD().getBytes());
+
             return "SUCCESS"+","+loggingMember.getId()+
                              ","+loggingMember.getUserID()+
                              ","+loggingMember.getnameFirst()+
@@ -1071,7 +1073,8 @@ test.setId("1");
                              ","+corp.getId()+
                              ","+corp.getName()+
 //                             ","+role.getId()+
-							 ","+loggingMember.getPWD();
+//							 ","+loggingMember.getPWD()+
+                             ","+(new String(encodedPWD));
 
 
         } catch (NoResultException pe) {
@@ -1197,7 +1200,8 @@ test.setId("1");
         if (reqChunk[4].equals("testing"))
     		return "SUCCESS: Testing, no message sent: " +_content;
 
-		final String username = "hughhkhan@gmail.com";
+//		final String username = "hughhkhan@gmail.com";
+		final String username = "verify@highplume.com";
 		final String password = "Catalog1";
 
 
@@ -1217,7 +1221,8 @@ test.setId("1");
 		try {
 
 			Message message = new MimeMessage(session);
-			message.setFrom(new InternetAddress("hughhkhan@gmail.com"));
+//			message.setFrom(new InternetAddress("hughhkhan@gmail.com"));
+			message.setFrom(new InternetAddress("verify@highplume.com"));
 			message.setRecipients(Message.RecipientType.TO,
 				InternetAddress.parse(reqChunk[0]));
 			message.setSubject("Sign-up code");
@@ -1240,13 +1245,16 @@ test.setId("1");
 
     /*--------------------------*/
 
-  public boolean validUserAndLevel(String CorpID, String UserID, String UserToken, String minLevel) {
+  public boolean validUserAndLevel(String CorpID, String ID, String userTokenBase64, String minLevel) {
 	try{
-		Member member = em.createNamedQuery(Member.FIND_BY_PWD, Member.class).setParameter("pwd",UserToken).getSingleResult();
+        byte[] decodedPWD = Base64.getDecoder().decode(userTokenBase64.getBytes());
+        String userToken = new String(decodedPWD);
+
+		Member member = em.createNamedQuery(Member.FIND_BY_PWD, Member.class).setParameter("pwd",userToken).getSingleResult();
 		Integer minLevelIntValue = Integer.valueOf(minLevel);
 		Integer userRoleIntValue = Integer.valueOf(member.getRoleID());
-		
-		if (CorpID.equals(member.getCorpID()) && UserID.equals(member.getUserID())){
+
+		if (CorpID.equals(member.getCorpID())){
 			if (userRoleIntValue <= minLevelIntValue)
 				return true;
 			else
@@ -1264,6 +1272,33 @@ test.setId("1");
             return false; 
     }
   }
+
+    /*--------------------------*/
+
+  public String getRoleValue (String roleName){
+
+	switch(roleName) {
+		case "USER" : return "401";
+		case "DEPT-ADMIN" : return "301";
+		case "CORP-ADMIN" : return "201";
+		case "SUPER" : return "101";
+		default : return "001";
+	}
+  }
+
+    /*--------------------------*/
+
+  public String getRoleName (String roleValue){
+
+	switch(roleValue) {
+		case "401" : return "USER";
+		case "301" : return "DEPT-ADMIN";
+		case "201" : return "CORP-ADMIN";
+		case "101" : return "SUPER";
+		default : return "ERROR";
+	}
+  }
+
 }
 
 /*
