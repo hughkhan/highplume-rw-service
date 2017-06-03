@@ -871,6 +871,7 @@ test.setId("1");
             uidLC,hashChunk[Encryption.PBKDF2_INDEX],hashLopped,msgChunk[6],msgChunk[7],role.getId(), 	//UID,PWD,seed,6=email,7=departmentID,roleID
             active, activationCode);																		//active(bool), activationCode
         em.persist(member);
+
         return "Success:" + activationCode;
 
     } catch (EntityExistsException pe) {
@@ -883,6 +884,57 @@ test.setId("1");
         return  "General Error: " + e.getMessage();
     }
   }
+
+    /*--------------------------*/
+
+    @POST
+    @Path("userinfo")
+    @Consumes(MediaType.TEXT_PLAIN)
+    @Produces(MediaType.APPLICATION_JSON)
+    public String userInfo(String message) {
+    String[] msgChunk = message.split(","); //0=corpID,1=ID,2=param
+        String  corpID  = msgChunk[0],
+                ID      = msgChunk[1],
+                param   = msgChunk[2];
+        try{
+            TypedQuery<Member> query = em.createNamedQuery(Member.FIND_BY_ID, Member.class).setHint(QueryHints.CACHE_USAGE, CacheUsage.DoNotCheckCache).setParameter("id",ID);
+            Member member = query.getSingleResult();
+
+            if(param.equals("get")){
+                String retStr="{\"user\": ";
+                retStr += "{\"ID\": \"" + member.getId()+
+                        "\", \"nameFirst\": \"" + member.getnameFirst() +
+                        "\", \"nameMiddle\": \"" + member.getnameMiddle() +
+                        "\", \"nameLast\": \"" + member.getnameLast() +
+                        "\", \"userID\": \"" + member.getUserID() +
+                        "\", \"corpID\": \"" + member.getCorpID() +
+                        "\", \"email\": \"" + member.getEmail() +
+                        "\", \"department\": \"" + member.getDepartmentID() +
+                        "\", \"roleID\": \"" + member.getRoleID() +
+                        "\", \"active\": \"" + member.getActive() +
+                        "\"}";
+                retStr += "}";
+                return retStr;
+            }
+            else if (param.equals("set")){
+                if (!corpID.equals(member.getCorpID()))
+                    return "ERROR: Corp ID does not match!";
+                else{
+                    member.setnameFirst(msgChunk[3]);
+                    member.setnameMiddle(msgChunk[4]);
+                    member.setnameLast(msgChunk[5]);
+                    member.setEmail(msgChunk[6]);
+                    em.persist(member);
+                    return "SUCCESS";
+                }
+            }
+            else
+                return "ERROR:  wrong param or missing";
+
+        } catch (PersistenceException pe) {
+            return "ERROR: " + pe.getMessage();
+        }
+    }
 
     /*--------------------------*/
 
