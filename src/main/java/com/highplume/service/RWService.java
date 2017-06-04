@@ -259,10 +259,13 @@ test.setId("1");
     /*-------------------*/
 
     @GET
-    @Path("addqualities")
+    @Path("addqualities/{corpID}/{userToken}")
     @Produces("application/json")
-    public String addQualities() {
+    public String addQualities(@PathParam("corpID") String corpID, @PathParam("userToken") String userToken) {
 
+		if (!validUserAndLevel(corpID, userToken, null,"101"))
+			return "ERROR: Unauthorized";
+	
         java.util.ArrayList<String> tuTypeIdList = new java.util.ArrayList<>();
         addQualities(tuTypeIdList);
 
@@ -501,10 +504,12 @@ test.setId("1");
 
 
   @GET
-  @Path("initdb")
+  @Path("initdb/{corpID}/{userToken}")
   @Produces("text/html")
-  public String initDB() {
+  public String initDB(@PathParam("corpID") String corpID, @PathParam("userToken") String userToken) {
 
+  	if (!validUserAndLevel(corpID, userToken, null,"101"))
+		return "ERROR: Unauthorized";
 
 // ***Read in csv file with members
     String csvFile = "C:\\Docs\\Humayun\\Code\\Data\\members.csv";
@@ -679,22 +684,26 @@ test.setId("1");
     @Consumes(MediaType.TEXT_PLAIN)
     @Produces(MediaType.TEXT_PLAIN)
     public String qualityProfile(String message) {
-        String[] msgChunk = message.split(",");                         //0=corpID,1=param,2=param,3=nameFirst,4=nameMiddle,5=nameLast,6=email///,7=uid,5=pwd,6=email,7=dept,8=role
-        String  corpID  = msgChunk[0],                          //corpID
-                param   = msgChunk[1];                          //param (add/update/delete)
+        String[] msgChunk = message.split(",");                         //0=corpID,1=userToken,2=param,3=param
+        String  corpID  	= msgChunk[0],                          //corpID
+                userToken   = msgChunk[1],                          //userToken
+                param   	= msgChunk[2];                          //param (add/update/delete)
 		try{
+			if (!validUserAndLevel(corpID, userToken, null,"201"))
+			return "ERROR: Unauthorized";
+		
 			if (param.equalsIgnoreCase("update")){
-				String activeProfileId = msgChunk[2];                   //profile ID that is to be made active
+				String activeProfileId = msgChunk[3];                   //profile ID that is to be made active
 			   em.createNativeQuery("update tucomposite set active=false where corpid = '" + corpID + "'").executeUpdate();
 			   em.createNativeQuery("update tucomposite set active=true where corpid = '" + corpID + "' and id = '" + activeProfileId + "'").executeUpdate();
 			}
 			else if (param.equalsIgnoreCase("add")){
-				String newProfileName = msgChunk[2];                    //New profile name
+				String newProfileName = msgChunk[3];                    //New profile name
 				TUComposite tuc = new TUComposite(corpID, newProfileName, false);
 				em.persist(tuc);
 			}
 			else if (param.equalsIgnoreCase("delete")){
-				String profileIdToDelete = msgChunk[2];                 //id of the profile to delete
+				String profileIdToDelete = msgChunk[3];                 //id of the profile to delete
 
 				em.createNativeQuery("DELETE FROM tu WHERE tucompositeid = '" + profileIdToDelete + "'").executeUpdate();
 
@@ -1297,7 +1306,7 @@ test.setId("1");
 
     /*--------------------------*/
 
-  public boolean validUserAndLevel(String CorpID, String ID, String userTokenBase64, String minLevel) {
+  public boolean validUserAndLevel(String CorpID, String userTokenBase64, String userID, String minLevel) {
 	try{
         byte[] decodedPWD = Base64.getDecoder().decode(userTokenBase64.getBytes());
         String userToken = new String(decodedPWD);
@@ -1306,11 +1315,15 @@ test.setId("1");
 		Integer minLevelIntValue = Integer.valueOf(minLevel);
 		Integer userRoleIntValue = Integer.valueOf(member.getRoleID());
 
+		if (userID != null)
+		    if (!(member.getId().equals(userID)))
+                return false;                           //ID did not match record pulled up using userToken.  Possible hack.
+
 		if (CorpID.equals(member.getCorpID())){
 			if (userRoleIntValue <= minLevelIntValue)
 				return true;
 			else
-				return false;				
+				return false;
 		}
 		else
 		{
@@ -1321,7 +1334,7 @@ test.setId("1");
     } catch  (PersistenceException pe){
             return false;
     } catch (Exception e){
-            return false; 
+            return false;
     }
   }
 
