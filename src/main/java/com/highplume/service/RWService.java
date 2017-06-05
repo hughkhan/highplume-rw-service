@@ -885,8 +885,10 @@ test.setId("1");
         em.persist(member);
 
         String retStr = sendMailTLS(msgChunk[4]+","+msgChunk[0]+" "+msgChunk[2]+","+_getCorpNameFromID(corpID)+","+activationCode+","+"Not Testing");
-
-        return "Success:" + activationCode;
+		if (retStr.substring(0,7).equalsIgnoreCase("SUCCESS"))
+			return "SUCCESS";
+		else
+			return "FAIL";
 
     } catch (EntityExistsException pe) {
         return  "Duplicate Record: " + pe.getMessage();
@@ -1241,7 +1243,7 @@ test.setId("1");
   /*-----------------------------------------*/
 
   @POST
-      @Path("sendmailtls")
+  @Path("sendmailtls")
   @Consumes(MediaType.APPLICATION_JSON)
   @Produces(MediaType.TEXT_PLAIN)
   public String sendMailTLS(String request) {
@@ -1306,7 +1308,7 @@ test.setId("1");
 
 		} catch (MessagingException e) {
 //			throw new RuntimeException(e);
-            return e.getMessage();
+            return "ERROR:" + e.getMessage();
 		}
 
 
