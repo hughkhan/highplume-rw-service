@@ -725,33 +725,36 @@ test.setId("1");
     @Path("quality")
     @Consumes(MediaType.TEXT_PLAIN)
     @Produces(MediaType.TEXT_PLAIN)
-    public String quality(String message) {
+    public String quality(String message) {                                     //0=corpID,1=userToken,2=param1,3=param2,4=param3
         String[] msgChunk = message.split(",");
-        String  corpID  = msgChunk[0],                              //corpID
-                param   = msgChunk[1];                              //param (add/update/delete)
+        String  corpID      = msgChunk[0],                                      //corpID
+                userToken   = msgChunk[1],                                      //userToken
+                param       = msgChunk[2];                                      //param (add/update/delete)
 		try{
+			if (!validUserAndLevel(corpID, userToken, null,"201"))
+			return "ERROR: Unauthorized";
 
 			if (param.equalsIgnoreCase("update")){
 
-                if (msgChunk[2].isEmpty())
+                if (msgChunk[3].isEmpty())
 			        return "ERROR:TU_ID_EMPTY";
 
-				TU tu = em.find(TU.class, msgChunk[2]);                 //2=TU ID which is the primary key
+				TU tu = em.find(TU.class, msgChunk[3]);                         //2=TU ID which is the primary key
 				if (tu != null){
 				    TUType tutype = em.find(TUType.class, tu.getTutypeId());
 
 				    if (tutype.getName().equalsIgnoreCase("General"))
 				        return "ERROR:CANNOT_MODIFY_GENERAL";
 
-					tu.setRatio(Math.round(Float.parseFloat(msgChunk[3])));         //3=ratio to be updated.  Only allow ratio to be updated
+					tu.setRatio(Math.round(Float.parseFloat(msgChunk[4])));         //3=ratio to be updated.  Only allow ratio to be updated
 					em.persist(tu);
 				}
 				else
 					return "ERROR:BAD_QUALITYTYPEID";
 			}
 			else if (param.equalsIgnoreCase("add")){
-				String profileId = msgChunk[2];                                                         //2=Associated profile ID
-				String qualityTypeId = msgChunk[3];                                                     //3=Associated quality ID
+				String profileId = msgChunk[3];                                                         //2=Associated profile ID
+				String qualityTypeId = msgChunk[4];                                                     //3=Associated quality ID
 
                 //if chose "General" from the quality list
                 TUType tutype = em.find(TUType.class, qualityTypeId);
@@ -772,12 +775,12 @@ test.setId("1");
                 }
 
                 //Now add the quality the admin chose
-                TU tuNew = new TU(profileId, qualityTypeId, Math.round(Float.parseFloat(msgChunk[4])));    //4=ratio
+                TU tuNew = new TU(profileId, qualityTypeId, Math.round(Float.parseFloat(msgChunk[5])));    //4=ratio
 				em.persist(tuNew);
 			}
 			else if (param.equalsIgnoreCase("delete")){
 
-				TU tu = em.find(TU.class, msgChunk[2]);                 //2=TU ID which is the primary key
+				TU tu = em.find(TU.class, msgChunk[3]);                 //2=TU ID which is the primary key
 
 				if (tu != null){
 				    TUType tutype = em.find(TUType.class, tu.getTutypeId());
@@ -798,13 +801,20 @@ test.setId("1");
   /*--------------------------*/
 
     @GET
-    @Path("givestar/{givingMemberID}/{receivingMemberID}/{qualityID}")
+    @Path("givestar/{corpID}/{userToken}/{givingMemberID}/{receivingMemberID}/{qualityID}")
     @Produces("text/html")
     public Response giveStar(
+            @PathParam("corpID") String corpID,
+            @PathParam("userToken") String userToken,
             @PathParam("givingMemberID") String givingMemberID,
             @PathParam("receivingMemberID") String receivingMemberID,
             @PathParam("qualityID") String qualityID) {
 
+
+        if (!validUserAndLevel(corpID, userToken, givingMemberID,"401"))
+            return Response.status(403)
+                            .entity("<html lang=\"en\"><body> ERROR: Unauthorized <br></body></html>")
+                            .build();
 
         Calendar calendar = Calendar.getInstance();	                    //create a java calendar instance
         java.util.Date now = calendar.getTime();	                    //get a java.util.Date from the calendar instance. this date will represent the current instant, or "now".
@@ -817,30 +827,19 @@ test.setId("1");
         String lastName = (String) record[1];
       });*/
 
-        String responseString = "SUCCESS";
-        String rsList2 = "";
         try {
             StarGiven starGiven = new StarGiven(givingMemberID, receivingMemberID, qualityID, now);
             em.persist(starGiven);
 
-/*            Query query = em.createQuery("SELECT c FROM Member c WHERE c.id = ?1");
-            query.setParameter(1, givingMemberID);
-
-            Member givingMember = (Member) query.getSingleResult();
-//redundant     query = em.createQuery("SELECT c FROM Member c WHERE c.id = ?1");
-            query.setParameter(1, receivingMemberID);
-            Member receivingMember = (Member) query.getSingleResult();
-
-            responseString = givingMember.getnameFirst() + " gave to " + receivingMember.getnameFirst();*/
-
         } catch (PersistenceException pe) {
             return Response.status(500)
-                    .entity("<html lang=\"en\"><body><h1>  ERROR:  " + pe.getMessage() + "  </h1></body></html>\"")
-                    .build();
+                            .entity("<html lang=\"en\"><body><h1>  ERROR:  " + pe.getMessage() + "  </h1></body></html>\"")
+                            .build();
         }
+
         return Response.status(200)
-                .entity("<html lang=\"en\"><body>" + responseString + "<br>  First " + rsList2 + "</body></html>")
-                .build();
+                        .entity("<html lang=\"en\"><body> SUCCESS <br></body></html>")
+                        .build();
     }
 
   /*--------------------------*/
@@ -863,6 +862,10 @@ test.setId("1");
     String uidLC = msgChunk[4].toLowerCase(); //store uid in lowercase
     boolean active = msgChunk[9].equals("ACTIVE");
 
+    String corpID = msgChunk[3];
+    if (corpID.equalsIgnoreCase("NOCORPIDYET"))     //User is registering
+        corpID = _getCorpIDFromUID(msgChunk[4]);
+
     try{
         String fullHash, hashLopped, activationCode = "";
         String[] hashChunk = new String[5];
@@ -876,10 +879,12 @@ test.setId("1");
 
         Role role = em.createNamedQuery(Role.FIND_BY_NAME, Role.class).setParameter("name", msgChunk[8]).getSingleResult();
 
-        Member member = new Member(msgChunk[0],msgChunk[1],msgChunk[2],msgChunk[3],         			//msgChunk0=nameFirst,1=nameMiddle,2=nameLast,3=corpID
+        Member member = new Member(msgChunk[0],msgChunk[1],msgChunk[2],corpID,         			//msgChunk0=nameFirst,1=nameMiddle,2=nameLast,3=corpID
             uidLC,hashChunk[Encryption.PBKDF2_INDEX],hashLopped,msgChunk[6],msgChunk[7],role.getId(), 	//UID,PWD,seed,6=email,7=departmentID,roleID
             active, activationCode);																		//active(bool), activationCode
         em.persist(member);
+
+        String retStr = sendMailTLS(msgChunk[4]+","+msgChunk[0]+" "+msgChunk[2]+","+_getCorpNameFromID(corpID)+","+activationCode+","+"Not Testing");
 
         return "Success:" + activationCode;
 
@@ -977,7 +982,8 @@ test.setId("1");
             member.setHash(hashLopped);
             em.persist(member);
 
-            return "SUCCESS";
+            byte[] encodedPWD = Base64.getEncoder().encode(hashChunk[Encryption.PBKDF2_INDEX].getBytes());
+            return "SUCCESS:"+(new String(encodedPWD));
 
         } catch (Encryption.CannotPerformOperationException|Encryption.InvalidHashException ex) {
             return "FAIL: Encryption Failure";
@@ -1139,7 +1145,6 @@ test.setId("1");
 
 
         } catch (NoResultException pe) {
-//            return "NO RESULT" + "loggingMember.getDepartmentID()"+loggingMember.getDepartmentID()+"deptcorp.getDeptName()"+deptcorp.getDeptName();
             return "NO RESULT";
         } catch  (PersistenceException pe){
             return "ERROR: " + pe.getMessage();
@@ -1241,7 +1246,9 @@ test.setId("1");
   @Produces(MediaType.TEXT_PLAIN)
   public String sendMailTLS(String request) {
 
-        String[] reqChunk = request.split(","); //0=to,1=username,2=corpName,3=securitycode,4=testing
+        String[] reqChunk = request.split(","); //0=to(userid/email),1=username,2=corpName,3=securitycode,4=testing
+
+        String corpName = _getCorpNameFromID(_getCorpIDFromUID(reqChunk[0]));
         String _content;
 //        try{
             _content = "Hello "+reqChunk[1]+",  <br><br>Please click this link to securely sign up for "
@@ -1249,9 +1256,10 @@ test.setId("1");
 //                    +reqChunk[3]+"\"> "
 //                    +reqChunk[2]+" via Highplume.com</a>";
 
-                    +reqChunk[2]+" using Highplume.com --> <a href=\"http://192.168.100.169:8080/#/login?email="
+                    +corpName+" using Highplume. --> <a href=\"http://192.168.100.169/#/login?email="
                     +reqChunk[0]+"&securecode="+reqChunk[3]+"\"> "
-                    +reqChunk[2]+" via Highplume.com</a>";
+                    +corpName+" via Highplume.com</a><br><br>"
+                    + "If this is not you, please ignore.  The registrant might have mistyped her/his email.";
 
 //                    +reqChunk[0]+"&securecode="+URLEncoder.encode(reqChunk[3],"UTF-8")+"\"> "
 //        } catch (UnsupportedEncodingException e) {
@@ -1362,6 +1370,44 @@ test.setId("1");
 		case "101" : return "SUPER";
 		default : return "ERROR";
 	}
+  }
+
+    /*--------------------------*/
+
+  public String _getCorpIDFromUID(String userID){
+
+    String[] _messageChunks = userID.split("@");
+
+	try{
+		TypedQuery<CorpAllowedURLs> query = em.createNamedQuery(CorpAllowedURLs.FIND_CORPID_BY_URL, CorpAllowedURLs.class)
+                .setParameter("allowedURL",_messageChunks[_messageChunks.length-1].toLowerCase());  //only compare the part after the @ sign
+		CorpAllowedURLs corpAllowedURLs = query.getSingleResult();
+		return corpAllowedURLs.getCorpID();
+
+	} catch (NoResultException pe) {
+            return "NO RESULT";
+    } catch  (PersistenceException pe){
+            return "ERROR: " + pe.getMessage();
+    } catch (Exception e){
+            return "ERROR: " + e.getMessage();
+    }
+  }
+
+    /*--------------------------*/
+
+  public String _getCorpNameFromID(String corpID){
+
+	try{
+		Corp corp = em.createNamedQuery(Corp.FIND_BY_ID, Corp.class).setParameter("id", corpID).getSingleResult();
+		return corp.getName();
+
+	} catch (NoResultException pe) {
+            return "ERROR: NO RESULT";
+    } catch  (PersistenceException pe){
+            return "ERROR: " + pe.getMessage();
+    } catch (Exception e){
+            return "ERROR: " + e.getMessage();
+    }
   }
 
 }
