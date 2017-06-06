@@ -858,11 +858,14 @@ test.setId("1");
   @Produces(MediaType.TEXT_PLAIN)
   public String addMember(String message) {
     String csvSplitBy = ",";
-    String[] msgChunk = message.split(csvSplitBy); //0=nameFirst,1=nameMiddle,2=nameLast,3=corpID,4=uid,5=pwd,6=email,7=dept,8=role,9=active
-    String uidLC = msgChunk[4].toLowerCase(); //store uid in lowercase
-    boolean active = msgChunk[9].equals("ACTIVE");
-
+    String[] msgChunk = message.split(csvSplitBy);      //0=nameFirst,1=nameMiddle,2=nameLast,3=corpID,4=uid,5=pwd,6=email,7=dept,8=role,9=active,10=userToken(optional)
+    String uidLC = msgChunk[4].toLowerCase();           //store uid in lowercase
+    boolean active = msgChunk[9].equals("ACTIVE");      //if ACTIVE then userToken is passed.  From Admin Container
     String corpID = msgChunk[3];
+
+    if (active && !validUserAndLevel(corpID, msgChunk[10], null,"301"))
+        return "FAIL";
+
     if (corpID.equalsIgnoreCase("NOCORPIDYET"))     //User is registering
         corpID = _getCorpIDFromUID(msgChunk[4]);
 
@@ -884,11 +887,15 @@ test.setId("1");
             active, activationCode);																		//active(bool), activationCode
         em.persist(member);
 
-        String retStr = sendMailTLS(msgChunk[4]+","+msgChunk[0]+" "+msgChunk[2]+","+_getCorpNameFromID(corpID)+","+activationCode+","+"Not Testing");
-		if (retStr.substring(0,7).equalsIgnoreCase("SUCCESS"))
-			return "SUCCESS";
-		else
-			return "FAIL";
+        if (!active){
+            String retStr = sendMailTLS(msgChunk[4]+","+msgChunk[0]+" "+msgChunk[2]+","+_getCorpNameFromID(corpID)+","+activationCode+","+"Not Testing");
+            if (retStr.substring(0,7).equalsIgnoreCase("SUCCESS"))
+                return "SUCCESS";
+            else
+                return "FAIL";
+		}
+
+		return "SUCCESS";
 
     } catch (EntityExistsException pe) {
         return  "Duplicate Record: " + pe.getMessage();
