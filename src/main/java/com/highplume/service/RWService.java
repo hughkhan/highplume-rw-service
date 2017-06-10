@@ -915,10 +915,15 @@ test.setId("1");
     @Consumes(MediaType.TEXT_PLAIN)
     @Produces(MediaType.APPLICATION_JSON)
     public String userInfo(String message) {
-    String[] msgChunk = message.split(","); //0=corpID,1=ID,2=param
-        String  corpID  = msgChunk[0],
-                ID      = msgChunk[1],
-                param   = msgChunk[2];
+    String[] msgChunk = message.split(","); //0=corpID,1=userToken,2=ID,3=param,4=first,5=middle,6=last,7=email
+        String  corpID  	= msgChunk[0],
+                userToken   = msgChunk[1],
+                ID      	= msgChunk[2],
+                param   	= msgChunk[3];
+				
+        if (!validUserAndLevel(corpID, userToken, null,"401"))
+			return "ERROR:  Not Authorized";
+		
         try{
             TypedQuery<Member> query = em.createNamedQuery(Member.FIND_BY_ID, Member.class).setHint(QueryHints.CACHE_USAGE, CacheUsage.DoNotCheckCache).setParameter("id",ID);
             Member member = query.getSingleResult();
@@ -943,16 +948,16 @@ test.setId("1");
                 if (!corpID.equals(member.getCorpID()))
                     return "ERROR: Corp ID does not match!";
                 else{
-                    member.setnameFirst(msgChunk[3]);
-                    member.setnameMiddle(msgChunk[4]);
-                    member.setnameLast(msgChunk[5]);
-                    member.setEmail(msgChunk[6]);
+                    member.setnameFirst(msgChunk[4]);
+                    member.setnameMiddle(msgChunk[5]);
+                    member.setnameLast(msgChunk[6]);
+                    member.setEmail(msgChunk[7]);
                     em.persist(member);
                     return "SUCCESS";
                 }
             }
             else
-                return "ERROR:  wrong param or missing";
+                return "ERROR:  wrong param or param missing";
 
         } catch (PersistenceException pe) {
             return "ERROR: " + pe.getMessage();
@@ -966,17 +971,24 @@ test.setId("1");
     @Consumes(MediaType.TEXT_PLAIN)
     @Produces(MediaType.TEXT_PLAIN)
     public String changePwd(String message) {
-    String[] msgChunk = message.split(","); //0=corpID,1=ID,2=check/nockeck3=oldpwd,4=newpwd
-        String  corpID  = msgChunk[0], //not using.  ID's are unique across the whole database
-                ID      = msgChunk[1];
-        boolean check   = msgChunk[2].equals("check");
-        String  oldPwd  = msgChunk[3],
-                newPwd  = msgChunk[4];
+    String[] msgChunk = message.split(","); //0=corpID,1=userToken,2=ID,3=check/nockeck4=oldpwd,5=newpwd
+        String  corpID  	= msgChunk[0], //not using.  ID's are unique across the whole database
+                userToken   = msgChunk[1],
+                ID      	= msgChunk[2];
+        boolean check   	= msgChunk[3].equals("check");
+        String  oldPwd  	= msgChunk[4],
+                newPwd  	= msgChunk[5];
 
+		if (check && !validUserAndLevel(corpID, userToken, null,"401"))
+			return "ERROR:  Not Authorized";
+		
+		if (!check && !validUserAndLevel(corpID, userToken, null,"301"))
+			return "ERROR:  Not Authorized";
+		
         try{
             TypedQuery<Member> query = em.createNamedQuery(Member.FIND_BY_ID, Member.class).setHint(QueryHints.CACHE_USAGE, CacheUsage.DoNotCheckCache).setParameter("id",ID);
             Member member = query.getSingleResult();
-
+			
             if (check && !Encryption.verifyPassword(oldPwd, member.getHash()+":"+member.getPWD()))  //algorithm:iterations:hashSize:salt:hash (hash is the encrypted pwd)
                 return "FAIL:  Old password did not match";
 
@@ -1008,10 +1020,14 @@ test.setId("1");
     @Consumes(MediaType.TEXT_PLAIN)
     @Produces(MediaType.TEXT_PLAIN)
     public String inactiveUser(String message) {
-    String[] msgChunk = message.split(","); //0=corpID,1=ID,2=check/nockeck3=oldpwd,4=newpwd
-        String  corpID  = msgChunk[0], //not using.  ID's are unique across the whole database
-                ID      = msgChunk[1];
-
+    String[] msgChunk = message.split(","); //0=corpID,1=userToken,2=ID
+        String  corpID  	= msgChunk[0], //not using.  ID's are unique across the whole database
+                userToken   = msgChunk[1],
+                ID      	= msgChunk[2];
+				
+		if (!validUserAndLevel(corpID, userToken, null,"301"))
+			return "ERROR:  Not Authorized";
+		
         try{
             Member member = em.createNamedQuery(Member.FIND_BY_ID, Member.class).setHint(QueryHints.CACHE_USAGE, CacheUsage.DoNotCheckCache).setParameter("id",ID).getSingleResult();
             if (member.getActive())
@@ -1034,10 +1050,14 @@ test.setId("1");
     @Consumes(MediaType.TEXT_PLAIN)
     @Produces(MediaType.TEXT_PLAIN)
     public String changeUserDept(String message) {
-    String[] msgChunk = message.split(","); //0=corpID,1=ID,2=toDept
-        String  corpID  = msgChunk[0],
-                ID      = msgChunk[1],
-                toDept  = msgChunk[2];
+    String[] msgChunk = message.split(","); //0=corpID,1=userToken,2=ID,3=toDept
+        String  corpID  	= msgChunk[0],
+                ID      	= msgChunk[1],
+                userToken   = msgChunk[2],
+                toDept  	= msgChunk[3];
+
+		if (!validUserAndLevel(corpID, userToken, null,"301"))
+			return "ERROR:  Not Authorized";				
 
         try{
             Member member = em.createNamedQuery(Member.FIND_BY_ID, Member.class).setHint(QueryHints.CACHE_USAGE, CacheUsage.DoNotCheckCache).setParameter("id",ID).getSingleResult();
@@ -1067,19 +1087,23 @@ test.setId("1");
     @Consumes(MediaType.TEXT_PLAIN)
     @Produces(MediaType.TEXT_PLAIN)
     public String deptAdmin(String message) {
-    String[] msgChunk = message.split(","); //0=corpID,1=ID,2=toDept
+    String[] msgChunk = message.split(","); //0=corpID,1=userToken,2=deptID/deptName,3=deptName(optional)
         String  corpID      = msgChunk[0],
-                operation   = msgChunk[1];
+                userToken   = msgChunk[1],
+                operation   = msgChunk[2];
+
+		if (!validUserAndLevel(corpID, userToken, null,"201"))
+			return "ERROR:  Not Authorized";				
 
         try{
             if (operation.equalsIgnoreCase("add")){
-                String deptName = msgChunk[2];
+                String deptName = msgChunk[3];
                 if ((deptName == null || deptName.isEmpty())) return "FAIL:BLANK_FIELD";
 
                 DeptCorp department = new DeptCorp(deptName, corpID);
                 em.persist(department);
             }else if (operation.equalsIgnoreCase("delete")){
-                String deptID = msgChunk[2];
+                String deptID = msgChunk[3];
                 if ((deptID == null || deptID.isEmpty())) return "FAIL:BLANK_FIELD";
 
                 String queryStr = "select count(id) from member where departmentid = '" + deptID + "'";
@@ -1092,7 +1116,7 @@ test.setId("1");
                     em.remove(departmentToDelete);
                 }
             }else if (operation.equalsIgnoreCase("rename")){
-                String deptID = msgChunk[2], deptName = msgChunk[3];
+                String deptID = msgChunk[3], deptName = msgChunk[4];
                 if ((deptID == null || deptID.isEmpty() || deptName == null || deptName.isEmpty())) return "FAIL:BLANK_FIELD";
 
                 DeptCorp departmentToRename = em.find(DeptCorp.class, deptID);
@@ -1249,10 +1273,10 @@ test.setId("1");
 
   /*-----------------------------------------*/
 
-  @POST
-  @Path("sendmailtls")
-  @Consumes(MediaType.APPLICATION_JSON)
-  @Produces(MediaType.TEXT_PLAIN)
+//  @POST
+//  @Path("sendmailtls")
+//  @Consumes(MediaType.APPLICATION_JSON)
+//  @Produces(MediaType.TEXT_PLAIN)
   public String sendMailTLS(String request) {
 
         String[] reqChunk = request.split(","); //0=to(userid/email),1=username,2=corpName,3=securitycode,4=testing
@@ -1268,7 +1292,7 @@ test.setId("1");
                     +corpName+" using Highplume. --> <a href=\"http://192.168.100.169/#/login?email="
                     +reqChunk[0]+"&securecode="+reqChunk[3]+"\"> "
                     +corpName+" via Highplume.com</a><br><br>"
-                    + "If this is not you, please ignore.  The registrant might have mistyped her/his email.";
+                    + "If this is not you, please ignore this email.  The registrant might have mistyped her/his email.";
 
 //                    +reqChunk[0]+"&securecode="+URLEncoder.encode(reqChunk[3],"UTF-8")+"\"> "
 //        } catch (UnsupportedEncodingException e) {
