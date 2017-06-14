@@ -5,7 +5,7 @@
              version="2.1">
 
   <persistence-unit name="chapter15PU" transaction-type="JTA">
-    <jta-data-source>jdbc/postgres-resource</jta-data-source>
+    <jta-data-source>jdbc/postgres-resource-rw</jta-data-source>
       <class>com.highplume.service.StarGiven</class>
       <class>com.highplume.service.Role</class>
 
