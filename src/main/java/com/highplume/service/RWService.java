@@ -10,13 +10,10 @@ import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.UriInfo;
+import java.io.*;
 import java.net.URI;
 import java.text.DecimalFormat;
 import java.util.*;
-
-import java.io.BufferedReader;
-import java.io.FileReader;
-import java.io.IOException;
 
 //import java.util.*;
 //import javax.mail.*;
@@ -48,6 +45,9 @@ public class RWService {
   private EntityManager em;
   @Context
   private UriInfo uriInfo;
+
+  String logFile = "c:/highplume.log";
+  String logTrigger = "c:/log.trigger";
 
   // ======================================
   // =           Public Methods           =
@@ -255,6 +255,28 @@ test.setId("1");
         "        {\"a\": \"7She: A History of Adventure\", \"b\": \"H. Rider Haggard\"}" +
         "      ]}";
     }*/
+
+
+    /*--------------------------*/
+
+    public void log (String output){
+        File f = new File(logTrigger);
+        if(f.exists()) {
+            Calendar calendar = Calendar.getInstance();
+            java.util.Date now = calendar.getTime();
+
+            try (BufferedWriter bw = new BufferedWriter(new FileWriter(logFile, true))) {
+                bw.write(now.toString() + ":" + output);
+                bw.newLine();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+
+
+
 
     /*-------------------*/
 
