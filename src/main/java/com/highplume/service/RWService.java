@@ -47,8 +47,6 @@ public class RWService {
   @Context
   private UriInfo uriInfo;
 
-  String logFile = "highplumeRWService.log";
-  String logTrigger = "highplumelog.trigger";
 
   // ======================================
   // =           Public Methods           =
@@ -258,41 +256,19 @@ test.setId("1");
     }*/
 
 
-    /*--------------------------*/
-		
-    public void log (String output){
-		log(output, 0);
+    /*-----------------------------*/
+
+	public void log (String output){
+		Util.log("RW-", output);
 	}
-		
 
-    public void log (String output, int logLevel){
-//        String path = ROService.class.getProtectionDomain().getCodeSource().getLocation().getPath();
-		File f1 = new File("."); 				// f is the current directory; where the JVM was launched  => C:\Users\Latitude Owner\Documents\payara41\glassfish\domains\domain1\config\.
-		String path = f1.getAbsolutePath();
-        String decodedPath = "";
-        try{
-            decodedPath = URLDecoder.decode(path, "UTF-8");
-        }catch (UnsupportedEncodingException e){
-             e.printStackTrace();
-        } 
+    /*-----------------------------*/
 
-		decodedPath = decodedPath.substring(0, decodedPath.indexOf("config")) + "logs\\";
-		
-        File f = new File(decodedPath+logTrigger);				//if logTrigger file exists, log everything.  Otherwise only log level 0 stuff.
-        if(f.exists() || logLevel == 0) {
-            Calendar calendar = Calendar.getInstance();
-            java.util.Date now = calendar.getTime();
+	public void log (String output, int logLevel){
+		Util.log("RW-", output, logLevel);
+	}
 
-            try (BufferedWriter bw = new BufferedWriter(new FileWriter(decodedPath+logFile, true))) {
-                bw.write(decodedPath+"---"+now.toString() + ":" + output);
-                bw.newLine();
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        }
-    }
-
-    /*-------------------*/
+    /*-----------------------------*/
 
     @GET
     @Path("addqualities/{corpID}/{userToken}")
