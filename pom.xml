@@ -327,6 +327,13 @@
       <groupId>junit</groupId>
       <artifactId>junit</artifactId>
     </dependency>
+	
+    <dependency>
+		<groupId>com.highplume.service</groupId>
+		<artifactId>ro-common</artifactId>
+  	    <version>1.0</version>
+    </dependency>
+	
   </dependencies>
 
 </project>
